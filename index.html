@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+<html>
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>mmdtest</title>
+  <meta http-equiv="X-UA-Compatible">
+  <title>MMD test</title>
   <style>
     html {
       overflow: hidden;
@@ -30,16 +31,23 @@
   <script type="text/javascript">
     var frame, scene, camera, renderer, light, controls;
     var stats;
-    var helper, ikHelper, physicsHelper;
+    var helper, ikHelper, physicsHelper, effect;
     var modelFile = 'models/Rin/Rin.pmx';
-    var vmdFiles = ['vmds/walk.vmd'];
-    //var vmdFiles = ['models/DCD/DCD.vmd', 'models/DCD/555.vmd'];
-    var vpdFiles = ['vpds/5.vpd'];
-    var effect;
+    var vmdFiles = ['vmds/idle.vmd', 'vmds/walk.vmd', 'vmds/run.vmd'];
+    var vpdFiles = ['vpds/idle.vpd'];
     var clock = new THREE.Clock();
     var mesh;
-    init();
-    animate();
+//    var idleAction, walkAction, runAction;
+  //  var idleWeight, walkWeight, runWeight;
+    var myActions = [],
+      settings;
+
+    Ammo().then(function(AmmoLib) {
+      Ammo = AmmoLib;
+      init();
+      animate();
+    });
+
 
     function init() {
 
@@ -106,48 +114,58 @@
 
       loader.load(modelFile,
         function(mmd) {
-          mesh = mmd;
-          mesh.position.set(0, -15, 0);
-          scene.add(mesh);
-
-          helper.add(mesh, {
-            physics: true
-          });
+          function loadEnd(_mmd) {
+            mesh = _mmd;
+            mesh.position.set(0, -15, 0);
+            scene.add(mesh);
 
 
-          loader.loadVPD(vpdFiles[0], false, function(vpd) {
-            helper.pose(mesh, vpd);
-          }, onProgress, onError);
+            helper.add(mesh, {
+              physics: true
+            });
+
+            /*loader.loadVPD(vpdFiles[0], false, function(vpd) {
+              helper.pose(mesh, vpd);
+            }, onProgress, onError);*/
+
+            var objects = helper.objects.get(mesh);
+            objects.mixer = new THREE.AnimationMixer(mesh);
+
+            for (let i = 0; i < vmdFiles.length; i++) {
+              loader.loadAnimation(vmdFiles[i], mesh, function(vmd) {
+                //vmd.name = 'action' + i;
+                setAction(objects.mixer.clipAction( vmd ), i);
+                /*helper._setupMeshAnimation(mesh, vmd);
+        			helper.objects.get( mesh ).mixer.clipAction(vmd).loop = THREE.LoopOnce;
+        			helper.objects.get( mesh ).mixer.clipAction(vmd).clampWhenFinished = true;*/
+
+              },onProgress, onError);
+            }
 
 
-          /*loader.loadAnimation(vmdFiles, mesh, function(vmd){
+            ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
+            ikHelper.visible = false;
+            scene.add(ikHelper);
 
-            helper._setupMeshAnimation(mesh, vmd);
-            //console.log(helper.meshes[0].skeleton.bones);
-            console.log(mesh.morphTargetDictionary);
-          },onProgress, onError);*/
+            physicsHelper = helper.objects.get(mesh).physics.createHelper();
+            physicsHelper.visible = false;
+            scene.add(physicsHelper);
 
-          ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
-          ikHelper.visible = false;
-          scene.add(ikHelper);
-
-          physicsHelper = helper.objects.get(mesh).physics.createHelper();
-          physicsHelper.visible = false;
-          scene.add(physicsHelper);
-
-          initGUI();
+            initGUI();
+          };
+          setTimeout(loadEnd(mmd), 10);
         },
         onProgress, onError);
 
       /////
       window.addEventListener('resize', onWindowResize, false);
+
     }
 
     function animate() {
       stats.begin();
-      controls.update();
-
       stats.end();
+      switchAction();
       requestAnimationFrame(animate);
       render();
     }
@@ -157,13 +175,36 @@
       helper.update(clock.getDelta());
       effect.render(scene, camera);
     }
-
+    function setAction(clip, i){
+      myActions[i] = clip;
+      myActions[i].play();
+      myActions[i].weight = 0;
+    }
+    function switchAction(){
+      if(myActions[0]!=undefined)
+        myActions[0].setEffectiveWeight(settings.idleWeight);
+      if(myActions[1]!=undefined)
+        myActions[1].setEffectiveWeight(settings.walkWeight);
+      if(myActions[2]!=undefined)
+        myActions[2].setEffectiveWeight(settings.runWeight);
+    }
     function initGUI() {
       var gui = new dat.GUI();
       gui.domElement.id = 'gui';
       var dictionary = mesh.morphTargetDictionary;
-      var morphs = gui.addFolder('Morphs');
 
+      settings = new function(){
+        this.idleWeight = 0.0;
+        this.walkWeight = 0.0;
+        this.runWeight = 1.0;
+      }
+
+      var motion = gui.addFolder('motion');
+      motion.add(settings, 'idleWeight', 0.0, 1.0, 0.01);
+      motion.add(settings, 'walkWeight', 0.0, 1.0, 0.01);
+      motion.add(settings, 'runWeight', 0.0, 1.0, 0.01);
+
+      var morphs = gui.addFolder('Morphs');
       var controls = {};
       var keys = [];
 
@@ -200,7 +241,6 @@
       initKeys();
       initMorphs();
       onChangeMorph();
-      morphs.open();
 
 
     }

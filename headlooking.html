@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-
+<html >
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>MMDLookingMouse</title>
+  <meta http-equiv="X-UA-Compatible" >
+  <title>MMD LookingAtMouse</title>
   <style>
     html {
       overflow: hidden;
@@ -33,7 +33,7 @@
     var helper, ikHelper, physicsHelper;
     var modelFile = 'models/Rin/Rin.pmx';
     var vmdFiles = ['vmds/walk.vmd'];
-    var vpdFiles = ['vpds/5_2.vpd'];
+    var vpdFiles = ['vpds/idle.vpd'];
     var effect;
     var clock = new THREE.Clock(),
       clock2 = new THREE.Clock();
@@ -67,8 +67,13 @@
       s: 1,
       pose: pose1
     }];
-    init();
-    animate();
+
+
+    Ammo().then(function(AmmoLib){
+      Ammo = AmmoLib;
+      init();
+      animate();
+    });
 
     function init() {
 
@@ -156,14 +161,6 @@
             helper.pose(mesh, vpd);
           }, onProgress, onError);
 
-
-          /*  loader.loadAnimation(vmdFiles, mesh, function(vmd){
-
-              helper._setupMeshAnimation(mesh, vmd);
-              //console.log(helper.meshes[0].skeleton.bones);
-            //  console.log(mesh.morphTargetDictionary);
-          },onProgress, onError);*/
-
           ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
           ikHelper.visible = false;
           scene.add(ikHelper);
@@ -238,7 +235,8 @@
 
     function letModelLookAtMouse() {
       if (gcontrols.turn === false) {
-        mesh.skeleton.bones[boneDictionary[headBoneName]].rotation.copy(initheadroation);
+        if(mesh!=undefined)
+         mesh.skeleton.bones[boneDictionary[headBoneName]].rotation.copy(initheadroation);
         return;
       }
       //	var mesh = helper.meshes[ 0 ];
