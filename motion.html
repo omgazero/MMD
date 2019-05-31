@@ -5,17 +5,33 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible">
-  <title>MMD montion&shadow</title>
+  <title>MMD motion&shadow</title>
   <style>
     html {
       overflow: hidden;
+    }
+    #loading{
+      z-index: 1;
+      padding: 10px 10px 5px;
+      background: #ff2db9;
+      left: 50%;
+      top: 50%;
+      color: #fff;
+      position: fixed;
+      width: 150px;
+      height: 30px;
+      text-align: center;
+      box-shadow: 2px 2px 10px;
+      border-radius: 5px;
     }
   </style>
 </head>
 
 <body>
+  <div id='loading'>NOW LOADING...</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
   <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
 
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
@@ -64,7 +80,7 @@
     Ammo().then(function(AmmoLib) {
       Ammo = AmmoLib;
       init();
-      animate();
+
     });
 
 
@@ -172,6 +188,10 @@
               loader.loadAnimation(vmdFiles[i], mesh, function(vmd) {
                 setAction(objects.mixer.clipAction(vmd), i, weight[i]);
 
+                if(i === vmdFiles.length-1){
+                  $('#loading').hide(1000);
+                  animate();
+                }
               }, onProgress, onError);
             }
 
@@ -196,7 +216,7 @@
       updateWeightSliders();
 
 
-      if (mesh != undefined)
+    //  if (mesh != undefined)
         keyFrame();
 
       requestAnimationFrame(animate);
@@ -216,21 +236,21 @@
     }
 
     function updateWeightSliders() {
-      if (idleWeight != undefined)
+    //  if (idleWeight != undefined)
         settings['idleWeight'] = idleWeight;
-      if (walkWeight != undefined)
+    //  if (walkWeight != undefined)
         settings['walkWeight'] = walkWeight;
-      if (runWeight != undefined)
+    //  if (runWeight != undefined)
         settings['runWeight'] = runWeight;
 
     }
 
     function getWeight() {
-      if (myActions[0] != undefined)
+    //  if (myActions[0] != undefined)
         idleWeight = myActions[0].getEffectiveWeight();
-      if (myActions[1] != undefined)
+    //  if (myActions[1] != undefined)
         walkWeight = myActions[1].getEffectiveWeight();
-      if (myActions[2] != undefined)
+    //  if (myActions[2] != undefined)
         runWeight = myActions[2].getEffectiveWeight();
 
     }

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/104/three.min.js"></script>
+  <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/ammo.js"></script>
+
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/TGALoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/loaders/MMDLoader.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/effects/OutlineEffect.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
+  <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
+  <!-- ar.js -->
+  <script src="build/ar.js"></script>
+  <script>THREEx.ArToolkitContext.baseURL = ''</script>
+  <script type="text/javascript">
+    var frame, scene, camera, renderer, light, controls;
+    var arToolkitSource, arToolkitContext, markeHiro;
+    var stats;
+    var helper, ikHelper, physicsHelper, effect;
+    var modelFile = 'models/serval/serval.pmx';
+    var vmdFiles = ['vmds/servaldance.vmd'];
+    var vpdFiles = ['vpds/sing.vpd'];
+    var clock = new THREE.Clock();
+    var meshs = [];
+    var myActions = [],
+      settings;
+
+    Ammo().then(function(AmmoLib) {
+      Ammo = AmmoLib;
+      init();
+      animate();
+    });
+
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(new THREE.Color('lightgrey'), 0);
+      renderer.domElement.style.position = 'absolute'
+    	renderer.domElement.style.top = '0px'
+    	renderer.domElement.style.left = '0px'
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+
+    /*  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+      camera.position.z = 20;*/
+      camera = new THREE.Camera();
+	    scene.add(camera);
+
+      ////////////////////////////////////////////////////////////////////////////////
+    	//          handle arToolkitSource
+    	////////////////////////////////////////////////////////////////////////////////
+    	arToolkitSource = new THREEx.ArToolkitSource({
+    		// to read from the webcam
+    		sourceType : 'webcam',
+
+    		// // to read from an image
+    		// sourceType : 'image',
+    		// sourceUrl : THREEx.ArToolkitContext.baseURL + 'data/images/img.jpg',
+    		// to read from a video
+    		// sourceType : 'video',
+    		// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',
+    	})
+    	arToolkitSource.init(function onReady(){
+    		onResize()
+    	})
+
+    	// handle resize
+    	window.addEventListener('resize', function(){
+    		onResize()
+    	})
+    	function onResize(){
+    		arToolkitSource.onResize()
+    		arToolkitSource.copySizeTo(renderer.domElement)
+    		if( arToolkitContext.arController !== null ){
+    			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)
+    		}
+    	}
+    	////////////////////////////////////////////////////////////////////////////////
+    	//          initialize arToolkitContext
+    	////////////////////////////////////////////////////////////////////////////////
+
+      // create atToolkitContext
+    	arToolkitContext = new THREEx.ArToolkitContext({
+    		cameraParametersUrl: THREEx.ArToolkitContext.baseURL + 'data/data/camera_para.dat',
+    		detectionMode: 'mono',
+        maxDetectionRate: 30,
+        canvasWidth:80*3,
+        canvasHeight: 60*3,
+    	})
+    	// initialize it
+    	arToolkitContext.init(function onCompleted(){
+    		// copy projection matrix to camera
+    		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+    	})
+      markeHiro = addMarkeHiro();
+      scene.add(markeHiro);
+      ////////////////////////////////////////////////////////////////////////////////
+      stats = new Stats();
+      stats.showPanel(0);
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild(stats.domElement);
+    //  controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+      effect = new THREE.OutlineEffect(renderer);
+
+      light = new THREE.DirectionalLight(0xffffff);
+      light.position.set(50, 100, 0);
+      markeHiro.add(light);
+
+
+      ///model
+
+      function onProgress(xhr) {
+        if (xhr.lengthComputable) {
+          var percentComplete = xhr.loaded / xhr.total * 100;
+          console.log(Math.round(percentComplete, 2) + '% downloaded');
+        }
+      };
+
+      function onError(xhr) {};
+
+      var loader = new THREE.MMDLoader();
+      console.log(modelFile);
+
+      helper = new THREE.MMDAnimationHelper({
+        afterglow: 2.0
+      });
+
+      loader.loadWithAnimation(modelFile,vmdFiles,
+        function(mmd) {
+          function loadEnd(_mmd) {
+            mesh = _mmd.mesh;
+            mesh.scale.set(0.1, 0.1, 0.1);
+            meshs.push(mesh);
+            markeHiro.add(mesh);
+
+            helper.add(mesh, {
+              animation: _mmd.animation,
+              physics: true
+            });
+
+
+            ikHelper = helper.objects.get(mesh).ikSolver.createHelper();
+            ikHelper.visible = false;
+            scene.add(ikHelper);
+
+            physicsHelper = helper.objects.get(mesh).physics.createHelper();
+            physicsHelper.visible = false;
+            scene.add(physicsHelper);
+
+          };
+          setTimeout(loadEnd(mmd), 10);
+        },
+        onProgress, onError);
+
+      /////
+
+    }
+
+    function animate() {
+      stats.begin();
+      stats.end();
+      requestAnimationFrame(animate);
+      if(arToolkitSource.ready === false) return;
+      arToolkitContext.update(arToolkitSource.domElement);
+
+      render();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+      helper.update(clock.getDelta());
+      effect.render(scene, camera);
+    }
+
+    function addMarkeHiro(){
+      let markerRoot = new THREE.Group();
+      var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+    		type : 'pattern',
+    		patternUrl : THREEx.ArToolkitContext.baseURL + 'data/data/patt.hiro'
+    		// patternUrl : THREEx.ArToolkitContext.baseURL + 'data/data/patt.kanji'
+    	})
+
+      return markerRoot;
+    }
+  </script>
+</body>
+</html>
