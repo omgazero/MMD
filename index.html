@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible">
   <title>MMD test</title>
   <style>
     html {
@@ -14,7 +12,7 @@
 </head>
 
 <body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
+  <!--script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
   <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
 
@@ -27,8 +25,20 @@
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script>
-  <script type="text/javascript">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script-->
+  <script src="js/libs/ammo.js"></script>
+  <script type="module">
+
+    import * as THREE from './build/three.module.js';
+
+    import Stats from './jsm/libs/stats.module.js';
+		import { GUI } from './jsm/libs/dat.gui.module.js';
+
+    import { OrbitControls } from './jsm/controls/OrbitControls.js';
+		import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+		import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+		import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+
     var frame, scene, camera, renderer, light, controls;
     var stats;
     var helper, ikHelper, physicsHelper, effect;
@@ -36,7 +46,7 @@
     var vmdFiles = ['vmds/idle.vmd', 'vmds/walk.vmd', 'vmds/run.vmd'];
     var vpdFiles = ['vpds/idle.vpd'];
     var clock = new THREE.Clock();
-    var mesh;
+    var mesh, world, boxes = [];
 //    var idleAction, walkAction, runAction;
   //  var idleWeight, walkWeight, runWeight;
     var myActions = [],
@@ -44,6 +54,7 @@
 
     Ammo().then(function(AmmoLib) {
       Ammo = AmmoLib;
+
       init();
       animate();
     });
@@ -67,9 +78,9 @@
       stats.domElement.style.left = '0px';
       stats.domElement.style.top = '0px';
       document.body.appendChild(stats.domElement);
-      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls = new OrbitControls(camera, renderer.domElement);
 
-      effect = new THREE.OutlineEffect(renderer);
+      effect = new OutlineEffect(renderer);
 
       light = new THREE.DirectionalLight(0xffffff);
       light.position.set(50, 100, 0);
@@ -105,10 +116,10 @@
 
       function onError(xhr) {};
 
-      var loader = new THREE.MMDLoader();
+      var loader = new MMDLoader();
       console.log(modelFile);
 
-      helper = new THREE.MMDAnimationHelper({
+      helper = new MMDAnimationHelper({
         afterglow: 2.0
       });
 
@@ -151,6 +162,9 @@
             physicsHelper.visible = false;
             scene.add(physicsHelper);
 
+            world = helper.objects.get(mesh).physics.world;
+            createGround();
+            createBoxes();
             initGUI();
           };
           setTimeout(loadEnd(mmd), 10);
@@ -167,6 +181,7 @@
       stats.end();
       switchAction();
       requestAnimationFrame(animate);
+      updateBoxes();
       render();
     }
 
@@ -189,7 +204,7 @@
         myActions[2].setEffectiveWeight(settings.runWeight);
     }
     function initGUI() {
-      var gui = new dat.GUI();
+      var gui = new GUI();
       gui.domElement.id = 'gui';
       var dictionary = mesh.morphTargetDictionary;
 
@@ -244,7 +259,62 @@
 
 
     }
-
+    //// physics
+    function createRigidBody( size, weight, position ) {
+				var shape = new Ammo.btBoxShape( new Ammo.btVector3( size[ 0 ], size[ 1 ], size[ 2 ] ) );
+				var localInertia = new Ammo.btVector3( 0, 0, 0 );
+				shape.calculateLocalInertia( weight, localInertia );
+				var form = new Ammo.btTransform();
+				form.setIdentity();
+				form.setOrigin( new Ammo.btVector3( position.x, position.y, position.z ) );
+				var state = new Ammo.btDefaultMotionState( form );
+				var info = new Ammo.btRigidBodyConstructionInfo( weight, state, shape, localInertia );
+				return new Ammo.btRigidBody( info );
+			}
+			function createGround() {
+				var gridHelper = new THREE.GridHelper( 1000, 500 );
+				gridHelper.position.y = -15;
+				var body = createRigidBody( [ 1000, 1, 1000 ], 0, gridHelper.position );
+				body.setRestitution( 1 );
+				body.setFriction( 1 );
+				body.setDamping( 0, 0 );
+				body.setSleepingThresholds( 0, 0 );
+				world.addRigidBody( body );
+				scene.add( gridHelper );
+			}
+      function createBoxes() {
+				var geometry = new THREE.BoxBufferGeometry( 4, 4, 4 );
+				var material = new THREE.MeshPhongMaterial( { color: 0x444444 } );
+				for ( var i = 0; i < 20; i ++ ) {
+					for ( var j = 0; j < 5; j ++ ) {
+						var mesh = new THREE.Mesh( geometry, material );
+						mesh.position.x = -38 + i * 4;
+						mesh.position.y = -13 + j * 4.1;
+						mesh.position.z = -40 ;
+						var body = createRigidBody( [ 2, 2, 2 ], 1.0, mesh.position );
+						body.setSleepingThresholds( 0, 0 );
+						world.addRigidBody( body );
+						mesh.body = body;
+						mesh.ammoTransform = new Ammo.btTransform();
+						mesh.ammoQuaternion = new Ammo.btQuaternion( 0, 0, 0, 1 );
+						boxes.push( mesh );
+						scene.add( mesh );
+					}
+				}
+			}
+      function updateBoxes() {
+				for ( var i = 0, il = boxes.length; i < il; i ++ ) {
+					var box = boxes[ i ];
+					var body = box.body;
+					var form = box.ammoTransform;
+					var q = box.ammoQuaternion;
+					body.getMotionState().getWorldTransform( form );
+					var o = form.getOrigin();
+					form.getBasis().getRotation( q );
+					box.position.set( o.x(), o.y(), o.z() );
+					box.quaternion.set( q.x(), q.y(), q.z(), q.w() );
+				}
+			}
     function onWindowResize() {
 
       camera.aspect = window.innerWidth / window.innerHeight;

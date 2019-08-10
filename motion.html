@@ -29,9 +29,8 @@
 
 <body>
   <div id='loading'>NOW LOADING...</div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
+  <!--script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/103/three.min.js"></script>
   <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
 
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/libs/mmdparser.min.js"></script>
@@ -43,8 +42,22 @@
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/CCDIKSolver.js"></script>
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDPhysics.js"></script>
   <script src="https://rawgit.com/mrdoob/three.js/master/examples/js/animation/MMDAnimationHelper.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script>
-  <script type="text/javascript">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5.1/dat.gui.min.js"></script-->
+
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="js/libs/ammo.js"></script>
+  <script type="module">
+
+  import * as THREE from './build/three.module.js';
+
+  import Stats from './jsm/libs/stats.module.js';
+  import { GUI } from './jsm/libs/dat.gui.module.js';
+
+  import { OrbitControls } from './jsm/controls/OrbitControls.js';
+  import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+  import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+  import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+
     var frame, scene, camera, renderer, light, controls;
     var stats;
     var helper, ikHelper, physicsHelper, effect;
@@ -104,9 +117,9 @@
       stats.domElement.style.left = '0px';
       stats.domElement.style.top = '0px';
       document.body.appendChild(stats.domElement);
-      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls = new OrbitControls(camera, renderer.domElement);
 
-      effect = new THREE.OutlineEffect(renderer);
+      effect = new OutlineEffect(renderer);
       ///light
       var ambient = new THREE.AmbientLight(0x666666, 0.3);
       scene.add(ambient);
@@ -148,10 +161,10 @@
 
       function onError(xhr) {};
 
-      var loader = new THREE.MMDLoader();
+      var loader = new MMDLoader();
       console.log(modelFile);
 
-      helper = new THREE.MMDAnimationHelper({
+      helper = new MMDAnimationHelper({
         afterglow: 2.0
       });
 
@@ -263,7 +276,7 @@
     }
 
     function initGUI() {
-      var gui = new dat.GUI();
+      var gui = new GUI();
       gui.domElement.id = 'gui';
       var dictionary = mesh.morphTargetDictionary;
 
