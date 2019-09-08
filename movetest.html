@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>move test</title>
+  <style>
+    html {
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="js/libs/ammo.js"></script>
+  <script type="module">
+
+    import * as THREE from './build/three.module.js';
+    import Stats from './jsm/libs/stats.module.js';
+    import { OrbitControls } from './jsm/controls/OrbitControls.js';
+    import { CameraController } from './js/libs/CameraController.js';
+    import { Character } from './js/libs/Character.js';
+    import { OutlineEffect } from './jsm/effects/OutlineEffect.js';
+    import { MMDLoader } from './jsm/loaders/MMDLoader.js';
+    import { MMDAnimationHelper } from './jsm/animation/MMDAnimationHelper.js';
+    var player, scene, camera, renderer, light, controls;
+    var stats, cameraController;
+    var helper, ikHelper, physicsHelper, effect;
+    var modelFile = 'models/Rin/Rin.pmx';
+    var vmdFiles = ['vmds/idle2.vmd', 'vmds/walk.vmd', 'vmds/run.vmd'];
+    var clock = new THREE.Clock(), cameraDistanceTarget = 1.6;
+
+    Ammo().then(function(AmmoLib) {
+      Ammo = AmmoLib;
+
+      init();
+    });
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x888888);
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      //camera.position.z = 20;
+      cameraController = new CameraController(camera, 0.5, 0.4);
+
+
+      stats = new Stats();
+      stats.showPanel(0);
+      stats.domElement.style.position = 'absolute';
+      stats.domElement.style.left = '0px';
+      stats.domElement.style.top = '0px';
+      document.body.appendChild(stats.domElement);
+    //  controls = new OrbitControls(camera, renderer.domElement);
+
+      effect = new OutlineEffect(renderer);
+
+      var lightA = new THREE.AmbientLight( 0x404040 ); // soft white light
+      scene.add( lightA );
+
+      light = new THREE.DirectionalLight(0x606060);
+      light.position.set(50, 100, 0);
+      scene.add(light);
+
+      ///skybox
+    	let cubeloader = new THREE.CubeTextureLoader();
+    	cubeloader.crossOrigin = '';
+
+    	let path = 'images/skybox/';
+    	let format = '.jpg';
+    	let urls = [
+    				path + 'right' + format,
+    				path + 'left' + format,
+    				path + 'top' + format,
+    				path + 'bottom' + format,
+    				path + 'front' + format,
+    				path + 'back' + format
+    	];
+
+
+    	let cube = cubeloader.load( urls );
+    	scene.background = cube;
+    	///
+      var gridHelper = new THREE.GridHelper( 100, 100 );
+      scene.add( gridHelper );
+
+      loadModel(modelFile);
+
+      //player = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshPhongMaterial({color: 'red'}));
+      //scene.add(player);
+      var box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
+      box.position.set(1, 0, 1);
+      scene.add(box);
+      var ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
+      ball.position.set(-1, 0, 1);
+      scene.add(ball);
+      var box2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
+      ball.position.set(0, 0, 1);
+      scene.add(box2);
+
+      /////
+      window.addEventListener('resize', onWindowResize, false);
+      document.addEventListener('click', onMouseClick, false);
+      document.addEventListener('pointerlockchange', onPointerlockChange, false);
+      document.addEventListener('keydown', onKeyDown, false);
+      document.addEventListener('keyup', onKeyUp, false);
+      document.addEventListener('mousewheel', onScroll, false);
+      document.addEventListener('DOMMouseScroll', onScroll, false);
+    }
+
+    function animate() {
+      stats.begin();
+      stats.end();
+      cameraController.radius = THREE.Math.lerp(cameraController.radius, cameraDistanceTarget, 0.1);
+      cameraController.target.set(player.pos.x, player.pos.y + 0.7, player.pos.z);
+      cameraController.update();
+      requestAnimationFrame(animate);
+      render();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+      player.update(clock.getDelta());
+      //helper.update(clock.getDelta());
+      effect.render(scene, camera);
+    }
+    function onWindowResize() {
+
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    ///Models
+    function loadModel(model){
+
+      function onProgress(xhr) {
+        if (xhr.lengthComputable) {
+          var percentComplete = xhr.loaded / xhr.total * 100;
+          console.log(Math.round(percentComplete, 2) + '% downloaded');
+        }
+      };
+
+      function onError(xhr) {};
+
+      var loader = new MMDLoader();
+      console.log(model);
+
+      helper = new MMDAnimationHelper({
+        afterglow: 2.0
+      });
+
+      loader.load(model,
+        function(mmd) {
+          function loadEnd(_mmd) {
+            /*player = _mmd;
+            player.position.set(0, 0, 0);
+            player.scale.set(0.05, 0.05, 0.05);
+            scene.add(player);*/
+            _mmd.scale.set(0.05, 0.05, 0.05);
+            player = new Character(_mmd, helper);
+            scene.add(player.character);
+            player.helper.add(player.character, {
+              physics: false
+            });
+
+
+            var objects = helper.objects.get(player.character);
+            objects.mixer = new THREE.AnimationMixer(player.character);
+            var actions = ['idle', 'walk', 'run'];
+            var weight = [1, 0, 0];
+            for (let i = 0; i < vmdFiles.length; i++) {
+              loader.loadAnimation(vmdFiles[i], player.character, function(vmd) {
+                //setAction(objects.mixer.clipAction(vmd), i, weight[i]);
+                player.myActions[actions[i]] = objects.mixer.clipAction(vmd).setEffectiveWeight(weight[i]).play();
+
+              }, onProgress, onError);
+
+            };
+
+
+            /*ikHelper = player.helper.objects.get(player.character).ikSolver.createHelper();
+            ikHelper.visible = false;
+            scene.add(ikHelper);
+            physicsHelper = player.helper.objects.get(player.character).physics.createHelper();
+            physicsHelper.visible = false;
+            scene.add(physicsHelper);*/
+
+            //world = helper.objects.get(mesh).physics.world;
+            setTimeout(animate, 1000);
+            //animate();
+          };
+          setTimeout(loadEnd(mmd), 10);
+        },
+        onProgress, onError);
+
+    }
+    /*function setAction(clip, i) {
+      myActions[i] = clip;
+      //myActions[i].play();
+      //myActions[i].setEffectiveWeight(settings[weight]);
+    }*/
+    ////
+    function onMouseClick(){
+      if(document.pointerLockElement === document.body){
+        document.exitPointerLock();
+      }
+      else{
+        document.body.requestPointerLock();
+      }
+    }
+    function onMouseMove(e){
+      cameraController.move(e.movementX, e.movementY);
+    }
+    function onPointerlockChange(){
+      if (document.pointerLockElement === document.body){
+
+        document.addEventListener("mousemove", onMouseMove, false);
+      }
+      else{
+        document.removeEventListener("mousemove", onMouseMove, false);
+      }
+    }
+    function onScroll(e){
+
+      //e.preventDefault();
+      if ( e.wheelDeltaY ){
+
+        // WebKit
+        cameraDistanceTarget -= e.wheelDeltaY * 0.05 / 15;
+      }
+      else if ( e.wheelDelta ) {
+
+        // IE
+        cameraDistanceTarget -= e.wheelDelta * 0.05 / 15;
+      }
+      else if ( e.detail ){
+
+        // Firefox
+        cameraDistanceTarget += e.detail / 15;
+      }
+      cameraDistanceTarget = Math.max(cameraDistanceTarget, 0.5);
+      cameraDistanceTarget = Math.min(cameraDistanceTarget, 3);
+    }
+    ///
+    function onKeyDown(e){
+      e.stopPropagation();
+      player.onKeyDown(e.keyCode, camera.getWorldDirection(), cameraController.theta);
+      /*switch(e.keyCode){
+        case 38: //up
+	    	case 87: //W
+          var dir = camera.getWorldDirection();
+          dir.y = 0;
+          player.position.add(dir.normalize().multiplyScalar(moveSpeed));
+          player.rotation.y = cameraController.theta * Math.PI / 360 + Math.PI;
+          break;
+        case 40: //down
+    		case 83: //S
+          var dir = camera.getWorldDirection();
+          dir.y = 0;
+          player.position.sub(dir.normalize().multiplyScalar(moveSpeed));
+          player.rotation.y = cameraController.theta * Math.PI / 360;
+          break;
+        case 37: //left
+  	  	case 65: //A
+          var dir = camera.getWorldDirection().applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI/2);
+          dir.y = 0;
+          player.position.add(dir.normalize().multiplyScalar(moveSpeed));
+          player.rotation.y = cameraController.theta * Math.PI / 360  - Math.PI/2;
+          break;
+        case 39: //right
+  		  case 68: //D
+          var dir = camera.getWorldDirection().applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI/2);
+          dir.y = 0;
+          player.position.add(dir.normalize().multiplyScalar(moveSpeed));
+          player.rotation.y = cameraController.theta * Math.PI / 360  + Math.PI/2;
+          break;
+        case 32: //space
+          player.position.set(0, 0, 0);
+          break;
+        default:
+          break;
+      }*/
+    }
+    function onKeyUp(e){
+      e.stopPropagation();
+      player.onKeyUp(e.keyCode);
+    }
+    ///
+  </script>
+
+</body>
+
+</html>
