@@ -33,16 +33,16 @@ export class Character{
     this.myActions = [];
     this.myState = idle;
   }
-  update(delta){
+  update(delta, dir, theta){
+    dir.y = 0;
+    this.direction.copy(dir);
+    this.theta = theta;
     this.helper.update(delta);
     this.stateMachine();
     if( this.myState != kick )
      this.move(delta);
   }
-  onKeyDown(key, dir, theta){
-    dir.y = 0;
-    this.direction.copy(dir);
-    this.theta = theta;
+  onKeyDown(key){
     switch( key ){
       case 38: /*up*/
       case 87: /*W*/

@@ -137,7 +137,7 @@
 
     function render() {
       renderer.render(scene, camera);
-      player.update(clock.getDelta());
+      player.update(clock.getDelta(), player.pos.clone().sub(camera.position), cameraController.theta);
       //helper.update(clock.getDelta());
       effect.render(scene, camera);
     }
@@ -267,7 +267,7 @@
     function onKeyDown(e){
       e.stopPropagation();
       //player.onKeyDown(e.keyCode, camera.getWorldDirection(), cameraController.theta);
-      player.onKeyDown(e.keyCode, player.pos.clone().sub(camera.position), cameraController.theta);
+      player.onKeyDown(e.keyCode);
       /*switch(e.keyCode){
         case 38: //up
 	    	case 87: //W
