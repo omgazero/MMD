@@ -28,8 +28,9 @@
     var stats, cameraController;
     var helper, ikHelper, physicsHelper, effect;
     var modelFile = 'models/Rin/Rin.pmx';
-    var vmdFiles = ['vmds/idle2.vmd', 'vmds/walk.vmd', 'vmds/run.vmd'];
-    var clock = new THREE.Clock(), cameraDistanceTarget = 1.6;
+    var vmdFiles = ['vmds/idle2.vmd', 'vmds/walk.vmd', 'vmds/run.vmd', 'vmds/kick.vmd'];
+    var clock = new THREE.Clock(), cameraDistanceTarget = 30, offest = new THREE.Vector3(0, 0.7, 0), aimModel = false;
+    var world, boxes = [];
 
     Ammo().then(function(AmmoLib) {
       Ammo = AmmoLib;
@@ -89,14 +90,13 @@
     	let cube = cubeloader.load( urls );
     	scene.background = cube;
     	///
-      var gridHelper = new THREE.GridHelper( 100, 100 );
-      scene.add( gridHelper );
-
+      /*var gridHelper = new THREE.GridHelper( 100, 100 );
+      scene.add( gridHelper );*/
+      //// loadModel
       loadModel(modelFile);
+      ////
 
-      //player = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshPhongMaterial({color: 'red'}));
-      //scene.add(player);
-      var box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
+      /*var box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
       box.position.set(1, 0, 1);
       scene.add(box);
       var ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
@@ -104,7 +104,7 @@
       scene.add(ball);
       var box2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshPhongMaterial({color: 'red'}));
       ball.position.set(0, 0, 1);
-      scene.add(box2);
+      scene.add(box2);*/
 
       /////
       window.addEventListener('resize', onWindowResize, false);
@@ -120,8 +120,17 @@
       stats.begin();
       stats.end();
       cameraController.radius = THREE.Math.lerp(cameraController.radius, cameraDistanceTarget, 0.1);
-      cameraController.target.set(player.pos.x, player.pos.y + 0.7, player.pos.z);
+      if( aimModel == true ){
+        offest.x = THREE.Math.lerp(offest.x, 0.4, 0.1);
+        offest.y = THREE.Math.lerp(offest.y, 0.9, 0.1);
+      }
+      else {
+        offest.x = THREE.Math.lerp(offest.x, 0, 0.1);
+        offest.y = THREE.Math.lerp(offest.y, 0.7, 0.1);
+      }
+      cameraController.target.set(player.pos.x,  player.pos.y + 10, player.pos.z );
       cameraController.update();
+      updateBoxes();
       requestAnimationFrame(animate);
       render();
     }
@@ -160,60 +169,65 @@
       loader.load(model,
         function(mmd) {
           function loadEnd(_mmd) {
-            /*player = _mmd;
-            player.position.set(0, 0, 0);
-            player.scale.set(0.05, 0.05, 0.05);
-            scene.add(player);*/
-            _mmd.scale.set(0.05, 0.05, 0.05);
+            //_mmd.scale.set(0.05, 0.05, 0.05);
             player = new Character(_mmd, helper);
             scene.add(player.character);
             player.helper.add(player.character, {
-              physics: false
+              physics: true
             });
 
 
-            var objects = helper.objects.get(player.character);
+            let objects = helper.objects.get(player.character);
             objects.mixer = new THREE.AnimationMixer(player.character);
-            var actions = ['idle', 'walk', 'run'];
-            var weight = [1, 0, 0];
+            let settings = [ {weight:1, loop:THREE.LoopRepeat}, //idle
+                             {weight:0, loop:THREE.LoopRepeat}, //walk
+                             {weight:0, loop:THREE.LoopRepeat}, //run
+                             {weight:0, loop:THREE.LoopRepeat}];  //kick
             for (let i = 0; i < vmdFiles.length; i++) {
               loader.loadAnimation(vmdFiles[i], player.character, function(vmd) {
-                //setAction(objects.mixer.clipAction(vmd), i, weight[i]);
-                player.myActions[actions[i]] = objects.mixer.clipAction(vmd).setEffectiveWeight(weight[i]).play();
+                player.myActions[i] = objects.mixer.clipAction(vmd).setEffectiveWeight(settings[i].weight).setLoop(settings[i].loop).play();
 
               }, onProgress, onError);
 
             };
 
-
-            /*ikHelper = player.helper.objects.get(player.character).ikSolver.createHelper();
+            let ikHelper = helper.objects.get(player.character).ikSolver.createHelper();
             ikHelper.visible = false;
             scene.add(ikHelper);
-            physicsHelper = player.helper.objects.get(player.character).physics.createHelper();
-            physicsHelper.visible = false;
-            scene.add(physicsHelper);*/
 
-            //world = helper.objects.get(mesh).physics.world;
+            let physicsHelper = helper.objects.get(player.character).physics.createHelper();
+            physicsHelper.visible = false;
+            scene.add(physicsHelper);
+
+
+            console.log(helper.objects.get(player.character).physics);
+            world = helper.objects.get(player.character).physics.world;
+            createGround();
+            createBoxes();
             setTimeout(animate, 1000);
-            //animate();
           };
           setTimeout(loadEnd(mmd), 10);
         },
         onProgress, onError);
 
     }
-    /*function setAction(clip, i) {
-      myActions[i] = clip;
-      //myActions[i].play();
-      //myActions[i].setEffectiveWeight(settings[weight]);
-    }*/
     ////
-    function onMouseClick(){
-      if(document.pointerLockElement === document.body){
-        document.exitPointerLock();
+    function onMouseClick(e){
+      e.preventDefault();
+      if(e.button == 0){
+        if(document.pointerLockElement === document.body){
+          document.exitPointerLock();
+        }
+        else{
+          document.body.requestPointerLock();
+        }
       }
-      else{
-        document.body.requestPointerLock();
+      else if(e.button == 2){
+          aimModel = !aimModel;
+          if( aimModel == true )
+            cameraDistanceTarget = 0.5;
+          else
+            cameraDistanceTarget = 1.6;
       }
     }
     function onMouseMove(e){
@@ -234,25 +248,26 @@
       if ( e.wheelDeltaY ){
 
         // WebKit
-        cameraDistanceTarget -= e.wheelDeltaY * 0.05 / 15;
+        cameraDistanceTarget -= e.wheelDeltaY * 0.05 / 5;
       }
       else if ( e.wheelDelta ) {
 
         // IE
-        cameraDistanceTarget -= e.wheelDelta * 0.05 / 15;
+        cameraDistanceTarget -= e.wheelDelta * 0.05 / 5;
       }
       else if ( e.detail ){
 
         // Firefox
-        cameraDistanceTarget += e.detail / 15;
+        cameraDistanceTarget += e.detail / 5;
       }
-      cameraDistanceTarget = Math.max(cameraDistanceTarget, 0.5);
-      cameraDistanceTarget = Math.min(cameraDistanceTarget, 3);
+      cameraDistanceTarget = Math.max(cameraDistanceTarget, 20);
+      cameraDistanceTarget = Math.min(cameraDistanceTarget, 60);
     }
     ///
     function onKeyDown(e){
       e.stopPropagation();
-      player.onKeyDown(e.keyCode, camera.getWorldDirection(), cameraController.theta);
+      //player.onKeyDown(e.keyCode, camera.getWorldDirection(), cameraController.theta);
+      player.onKeyDown(e.keyCode, player.pos.clone().sub(camera.position), cameraController.theta);
       /*switch(e.keyCode){
         case 38: //up
 	    	case 87: //W
@@ -294,6 +309,62 @@
       player.onKeyUp(e.keyCode);
     }
     ///
+    //// physics
+    function createRigidBody( size, weight, position ) {
+        var shape = new Ammo.btBoxShape( new Ammo.btVector3( size[ 0 ], size[ 1 ], size[ 2 ] ) );
+        var localInertia = new Ammo.btVector3( 0, 0, 0 );
+        shape.calculateLocalInertia( weight, localInertia );
+        var form = new Ammo.btTransform();
+        form.setIdentity();
+        form.setOrigin( new Ammo.btVector3( position.x, position.y, position.z ) );
+        var state = new Ammo.btDefaultMotionState( form );
+        var info = new Ammo.btRigidBodyConstructionInfo( weight, state, shape, localInertia );
+        return new Ammo.btRigidBody( info );
+      }
+      function createGround() {
+        var gridHelper = new THREE.GridHelper( 1000, 100 );
+        //gridHelper.position.y = -15;
+        var body = createRigidBody( [ 1000, 1, 1000 ], 0, gridHelper.position );
+        body.setRestitution( 1 );
+        body.setFriction( 1 );
+        body.setDamping( 0, 0 );
+        body.setSleepingThresholds( 0, 0 );
+        world.addRigidBody( body );
+        scene.add( gridHelper );
+      }
+      function createBoxes() {
+        var geometry = new THREE.BoxBufferGeometry( 8, 8, 8 );
+        var material = new THREE.MeshPhongMaterial( { color: 0x444444 } );
+        for ( var i = 0; i < 20; i ++ ) {
+          for ( var j = 0; j < 5; j ++ ) {
+            var mesh = new THREE.Mesh( geometry, material );
+            mesh.position.x = -38 + i * 4;
+            mesh.position.y = 13 + j * 4.1 ;
+            mesh.position.z = -40 + Math.random()*100;
+            var body = createRigidBody( [ 4, 4, 4 ], 16.0, mesh.position );
+            body.setSleepingThresholds( 0, 0 );
+            world.addRigidBody( body );
+            mesh.body = body;
+            mesh.ammoTransform = new Ammo.btTransform();
+            mesh.ammoQuaternion = new Ammo.btQuaternion( 0, 0, 0, 1 );
+            boxes.push( mesh );
+            scene.add( mesh );
+          }
+        }
+      }
+      function updateBoxes() {
+        for ( var i = 0, il = boxes.length; i < il; i ++ ) {
+          var box = boxes[ i ];
+          var body = box.body;
+          var form = box.ammoTransform;
+          var q = box.ammoQuaternion;
+          body.getMotionState().getWorldTransform( form );
+          var o = form.getOrigin();
+          form.getBasis().getRotation( q );
+          box.position.set( o.x(), o.y(), o.z() );
+          box.quaternion.set( q.x(), q.y(), q.z(), q.w() );
+        }
+      }
   </script>
 
 </body>

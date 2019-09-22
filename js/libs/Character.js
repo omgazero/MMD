@@ -1,5 +1,10 @@
 import * as THREE from '../../build/three.module.js';
 
+const idle = 0;
+const walk = 1;
+const run = 2;
+const kick = 3;
+
 export class Character{
 
   constructor(model, helper, pos){
@@ -8,7 +13,7 @@ export class Character{
 
     this.helper = helper;
 
-    this.moveSpeed = 1;
+    this.moveSpeed = 10;
     this.direction = new THREE.Vector3();
     this.theta = 0;
 
@@ -16,20 +21,23 @@ export class Character{
     this.moveBackward = false;
     this.moveLeft = false;
     this.moveRight = false;
-    this.jump = false;
+    this.run = false;
+    this.kick = false;
 
     /*
       idle : 0
       walk : 1
       run  : 2
+      kick : 3
     */
     this.myActions = [];
-    this.myState = 0;
+    this.myState = idle;
   }
   update(delta){
     this.helper.update(delta);
-    this.handleAction(delta);
     this.stateMachine();
+    if( this.myState != kick )
+     this.move(delta);
   }
   onKeyDown(key, dir, theta){
     dir.y = 0;
@@ -53,7 +61,11 @@ export class Character{
         this.moveRight = true;
         break;
       case 32: /*space*/
-        this.jump = true;
+        this.kick = true;
+        break;
+      case 16: /*shift*/
+        this.moveSpeed = 20;
+        this.run = true;
         break;
       }
     }
@@ -76,11 +88,15 @@ export class Character{
         this.moveRight = false;
         break;
       case 32: /*space*/
-        this.jump = false;
+        this.kick = false;
+        break;
+      case 16: /*shift*/
+        this.moveSpeed = 10;
+        this.run = false;
         break;
     }
   }
-  handleAction(delta){
+  move(delta){
     if( this.moveForward ){
 
       if( this.moveLeft ){
@@ -130,18 +146,97 @@ export class Character{
     this.character.position.copy(this.pos);
   }
   stateMachine(){
+
+    switch (this.myState) {
+      case 0:
+        this.idleState();
+        break;
+      case 1:
+        this.walkState();
+        break
+      case 2:
+        this.runState();
+        break;
+      case 3:
+        this.kickState();
+        break;
+      default:
+        break;
+    }
+  }
+  idleState(){
+    if( this.kick ){
+      this.kickState();
+      return;
+    }
     if( this.moveForward || this.moveBackward || this.moveLeft || this.moveRight ){
-      if( this.myState != 1 ){
-        this.myState = 1;
-        this.executeCrossFade(this.myActions['idle'], this.myActions['walk'], 0.1);
+
+      if(!this.run){
+        this.myState = walk;
+        this.executeCrossFade(this.myActions[idle], this.myActions[walk], 0.1);
       }
+      else{
+        this.myState = run;
+        this.executeCrossFade(this.myActions[idle], this.myActions[run], 0.1);
+      }
+    }
+  }
+  walkState(){
+    if( this.kick ){
+      this.kickState();
+      return;
+    }
+    if( !this.moveForward && !this.moveBackward && !this.moveLeft && !this.moveRight ){
+      this.myState = idle;
+      this.executeCrossFade(this.myActions[walk], this.myActions[idle], 0.1);
     }
     else {
-      if( this.myState != 0 ){
-        this.myState = 0;
-        this.executeCrossFade(this.myActions['walk'], this.myActions['idle'], 0.1);
+      if( this.run ){
+        this.myState = run;
+        this.executeCrossFade(this.myActions[walk], this.myActions[run], 0.1);
       }
     }
+  }
+  runState(){
+    if( this.kick ){
+      this.kickState();
+      return;
+    }
+    if( !this.run ){
+
+      if( this.moveForward || this.moveBackward || this.moveLeft || this.moveRight ){
+        this.myState = walk;
+        this.executeCrossFade(this.myActions[run], this.myActions[walk], 0.2);
+      }
+      else{
+        this.myState = idle;
+        this.executeCrossFade(this.myActions[run], this.myActions[idle], 0.2);
+      }
+    }
+    else{
+      if( !this.moveForward && !this.moveBackward && !this.moveLeft && !this.moveRight ){
+        this.myState = idle;
+        this.executeCrossFade(this.myActions[run], this.myActions[idle], 0.2);
+      }
+    }
+  }
+  kickState(){
+    if(this.kick && this.myState != kick){
+      this.executeCrossFade(this.myActions[this.myState], this.myActions[kick], 0.1);
+      this.myState = kick;
+    }
+    else if(this.myState == kick && this.myActions[kick].time >= 1.2 && this.kick == false){
+      this.myState = idle;
+      this.executeCrossFade(this.myActions[kick], this.myActions[idle], 0.1);
+    }
+    /*if( this.myActions[kick].isRunning () == false && this.myState != kick){
+      this.executeCrossFade(this.myActions[this.myState], this.myActions[kick], 0.2);
+      this.myState = kick;
+    }
+    else if( this.myActions[kick].isRunning () == false && this.myState == kick){
+      this.myState = idle;
+      this.executeCrossFade(this.myActions[kick], this.myActions[idle], 0.1);
+    }*/
   }
   executeCrossFade(startAction, endAction, duration) {
 
