@@ -29,7 +29,7 @@
     var helper, ikHelper, physicsHelper, effect;
     var modelFile = 'models/Rin/Rin.pmx';
     var vmdFiles = ['vmds/idle2.vmd', 'vmds/walk.vmd', 'vmds/run.vmd', 'vmds/kick.vmd'];
-    var clock = new THREE.Clock(), cameraDistanceTarget = 30, offest = new THREE.Vector3(0, 0.7, 0), aimModel = false;
+    var clock = new THREE.Clock(), cameraDistanceTarget = 30, aimModel = false;
     var world, boxes = [];
 
     Ammo().then(function(AmmoLib) {
@@ -120,14 +120,12 @@
       stats.begin();
       stats.end();
       cameraController.radius = THREE.Math.lerp(cameraController.radius, cameraDistanceTarget, 0.1);
-      if( aimModel == true ){
-        offest.x = THREE.Math.lerp(offest.x, 0.4, 0.1);
-        offest.y = THREE.Math.lerp(offest.y, 0.9, 0.1);
+    /*  if( aimModel == true ){
+        cameraController.target.copy(player.character.localToWorld(new THREE.Vector3(-10, 20, 10)));
       }
       else {
-        offest.x = THREE.Math.lerp(offest.x, 0, 0.1);
-        offest.y = THREE.Math.lerp(offest.y, 0.7, 0.1);
-      }
+        cameraController.target.set(player.pos.x,  player.pos.y + 10, player.pos.z );
+      }*/
       cameraController.target.set(player.pos.x,  player.pos.y + 10, player.pos.z );
       cameraController.update();
       updateBoxes();
@@ -200,7 +198,7 @@
             scene.add(physicsHelper);
 
 
-            console.log(helper.objects.get(player.character).physics);
+            console.log(player.character);
             world = helper.objects.get(player.character).physics.world;
             createGround();
             createBoxes();
@@ -225,9 +223,9 @@
       else if(e.button == 2){
           aimModel = !aimModel;
           if( aimModel == true )
-            cameraDistanceTarget = 0.5;
+            cameraDistanceTarget = 15;
           else
-            cameraDistanceTarget = 1.6;
+            cameraDistanceTarget = 30;
       }
     }
     function onMouseMove(e){
@@ -248,17 +246,17 @@
       if ( e.wheelDeltaY ){
 
         // WebKit
-        cameraDistanceTarget -= e.wheelDeltaY * 0.05 / 5;
+        cameraDistanceTarget -= e.wheelDeltaY * 0.05 ;
       }
       else if ( e.wheelDelta ) {
 
         // IE
-        cameraDistanceTarget -= e.wheelDelta * 0.05 / 5;
+        cameraDistanceTarget -= e.wheelDelta * 0.05 ;
       }
       else if ( e.detail ){
 
         // Firefox
-        cameraDistanceTarget += e.detail / 5;
+        cameraDistanceTarget += e.detail ;
       }
       cameraDistanceTarget = Math.max(cameraDistanceTarget, 20);
       cameraDistanceTarget = Math.min(cameraDistanceTarget, 60);

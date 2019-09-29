@@ -25,6 +25,7 @@ body {
 <div id="info">Holographic Pyramid
   <br> with Reflector
   <br>
+  <input type="button" value="toggle" id="toggle">
 </div>
 <!--
 <div id="v1" style="float:left;margin:2px;width:20vw; height:20vw"><canvas id='view1'></canvas></div>
@@ -59,7 +60,11 @@ body {
   var modelPos = [new THREE.Vector3(0, -10, 0), new THREE.Vector3(8, -10, -3), new THREE.Vector3(-8, -10, 3)];
   var vmdFiles = ['vmds/idle.vmd', 'vmds/walk.vmd', 'vmds/run.vmd', 'vmds/wavefile_v2.vmd'];
   var bufferCamera = []; //0 front, 1 right, 2 back, 3 left
-  var viewCamera = [], viewRenderer = [], viewScene = [];
+  var viewCamera = [], viewRenderer = [], viewScene = [], toggle = false;
+
+  $("#toggle").click(function(){
+    toggle = !toggle;
+  });
 
 
   Ammo().then(function(AmmoLib) {
@@ -237,7 +242,7 @@ function makeTrapezoid3(l) {
 	 for(let i = 0; i < 4; i++){
 		bufferCamera[i] = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
 		//bufferCamera.position.z = 35;
-		bufferCamera[i].position.set(Math.cos(i*Math.PI/2 )*30, 0, Math.sin(i*Math.PI/2 )*20);
+		bufferCamera[i].position.set(Math.cos(i*Math.PI/2 )*20, 0, Math.sin(i*Math.PI/2 )*20);
 		bufferCamera[i].lookAt(new THREE.Vector3(0, 0, 0));
 		bufferScene.add(bufferCamera[i]);
 		makePerspective(bufferCamera[i]);
@@ -447,10 +452,12 @@ function makeTrapezoid3(l) {
 		  turn*=-1;
 		else if( mesh.position.z >= 40 )
 		  turn*=-1;*/
-		  angle += 0.01;
-		  camera.position.set( -10*Math.cos(angle), 5, 10*Math.sin(angle));
-		  camera.lookAt(0, 2, 0);
-		  //camera.rotation.y = angle ;
+      if( toggle ){
+  		  angle += 0.01;
+  		  camera.position.set( -10*Math.cos(angle), 5, 10*Math.sin(angle));
+  		  camera.lookAt(0, 2, 0);
+      }
+
 
 
 		helper.update(clock.getDelta());
