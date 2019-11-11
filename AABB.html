@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AABB</title>
+  <style>
+    #info{
+      position: absolute;
+      top: 0px;
+      width: 100%;
+      padding: 10px;
+      text-align: center;
+      color: #ffff00
+    }
+    #point{
+      position: absolute;
+      top: 50px;
+      left: 0px;
+      width: 100%;
+      padding: 10px;
+      color: #ffff00
+    }
+    #point2{
+      position: absolute;
+      top: 300px;
+      left: 0px;
+      width: 100%;
+      padding: 10px;
+      color: #ffff00
+    }
+    body{
+      overflow: hidden;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="info">AABB Test</div>
+  <div id="point">Test</div>
+  <div id="point2">Test2</div>
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/107/three.min.js"></script>
+  <script type="text/javascript">
+    javascript:(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();document.body.appendChild(stats.dom);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//mrdoob.github.io/stats.js/build/stats.min.js';document.head.appendChild(script);})()
+
+    class AABB {
+      constructor(pos, vel, halfSize) {
+      	this.center = pos.clone();
+        this.vel = vel.clone();
+        this.halfSize = halfSize.clone();
+        this.min = pos.clone().sub (this.halfSize);
+        this.max = pos.clone().add (this.halfSize);
+        this.box = new THREE.Mesh (new THREE.PlaneGeometry(this.halfSize.x * 2, this.halfSize.y * 2, 0), new THREE.MeshBasicMaterial());
+
+        scene.add(this.box);
+        this.box.position.copy(this.center);
+      }
+      update(dt) {
+        this.center.add(this.vel.clone().multiplyScalar(dt));
+
+        if (Math.abs(this.center.x) > 40) this.vel.x *= -1;
+        if (Math.abs(this.center.y) > 40) this.vel.y *= -1;
+
+        this.max.addVectors(this.center, this.halfSize);
+        this.min.subVectors(this.center, this.halfSize);
+        this.box.position.copy(this.center);
+      }
+      collide(other) {
+        // boolean returning
+        /*
+        // x-axis
+        if (Math.abs(this.center.x - other.center.x) >= this.halfSize.x + other.halfSize.x)
+        	return false;
+        // y-axis
+        if (Math.abs(this.center.y - other.center.y) >= this.halfSize.y + other.halfSize.y)
+        	return false;
+        return true;
+        */
+        if( (this.max.x < other.min.x) || (this.min.x > other.max.x) ){
+          //console.log("this x =" + this.max.x  + " that x =" + other.min.x);
+          return false;
+        }
+        if( (this.max.y < other.min.y) || (this.min.y > other.max.y) )
+          return false;
+
+        return true;
+      }
+    }
+    class EndPoint{
+      constructor(val, index, isMax){
+        this.val = val;
+        this.index = index;
+        this.isMax = isMax;
+      }
+      getVal(){
+        return this.val;
+      }
+      isMAX(){
+        return this.isMax;
+      }
+      isMIN(){
+        return !this.isMax;
+      }
+    }
+    class Event{
+      constructor(index0, index1, type){
+        this.index0 = index0;
+        this.index1 = index1;
+        this.type = type;
+      }
+    }
+    var camera, scene, renderer;
+    var bbs = [], EndPointsX = [], EndPointsY = [], events = [], ovelapsSet = [];
+
+    init();
+    animate();
+
+    function init() {
+
+      renderer = new THREE.WebGLRenderer();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x888888);
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+      camera = new THREE.OrthographicCamera(-50, 50, 50, -50, -10, 100);
+      camera.position.z = 10;
+
+      var geometry = new THREE.Geometry();
+      geometry.vertices.push(
+        new THREE.Vector3(-40, -40, 0),
+        new THREE.Vector3(40, -40, 0),
+        new THREE.Vector3(40, 40, 0),
+        new THREE.Vector3(-40, 40, 0),
+        new THREE.Vector3(-40, -40, 0));
+
+      var border = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        color: 0x0000ff
+      }));
+      scene.add(border);
+
+      window.addEventListener('resize', onWindowResize, false);
+
+      /////////////////////////////////////////////////
+      let speed = 5;
+      let blocks = 2;
+      for (var i = 0; i < blocks; i++)
+      //bbs.push ( new AABB(new THREE.Vector3(myRandom()*40,myRandom()*40,0), new THREE.Vector3(myRandom()*speed, myRandom()*speed,0), new THREE.Vector3(2, 1, 0)) );
+      bbs.push ( new AABB(new THREE.Vector3(myRandom()*40,0,0)
+                , new THREE.Vector3(myRandom()*speed, 0,0)
+                , new THREE.Vector3(2, 1, 0)) );
+    }
+
+    function myRandom () {  //[-1,1]
+    	return Math.random()*2-1;
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      render();
+
+      setPoints();
+      sortPoints();
+      sweep();
+      let str = "";
+      for(let i=0;i<EndPointsX.length;i++){
+        str += EndPointsX[i].index + " = " + EndPointsX[i].val + "<br>";
+      }
+      $("#point").html(str);
+    	for (let i = 0; i < bbs.length; i++) {
+      	bbs[i].update(0.1);
+        bbs[i].box.material.color.set ('white');
+        /*for (let j = i+1; j < bbs.length; j++) {
+        	if (bbs[i].collide(bbs[j])) {
+          	bbs[i].box.material.color.set ('red');
+          	bbs[j].box.material.color.set ('red');
+          } else {
+          	bbs[i].box.material.color.set ('white');
+          	bbs[j].box.material.color.set ('white');
+          }
+        }*/
+      }
+
+      let str2 = "nothing";
+      for(let i = 0; i < ovelapsSet.length; i++){
+
+
+        bbs[ovelapsSet[i].X].box.material.color.set ('red');
+        bbs[ovelapsSet[i].Y].box.material.color.set ('red');
+        str2 = " A = " + ovelapsSet[i].X + "and B = " + ovelapsSet[i].Y + "  collided<br>";
+
+      }
+      $("#point2").html(str2);
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+    }
+    function setPoints(){
+      for(let i=0, j=0;i<bbs.length;i++){
+        EndPointsX[j] = new EndPoint(bbs[i].min.x, i, false);
+        EndPointsY[j++] = new EndPoint(bbs[i].min.y, i, false);
+        EndPointsX[j] = new EndPoint(bbs[i].max.x, i, true);
+        EndPointsY[j++] = new EndPoint(bbs[i].max.y, i, true);
+      }
+    }
+    function sortPoints(){
+
+      for(let i=1;i<EndPointsX.length;i++){
+        let j=i-1;
+
+        let keyX = EndPointsX[i];
+        //console.log(keyX.index);
+        for(j=i-1;j>=0 && keyX.val < EndPointsX[j].val; j--){
+            //console.log("i = " + i + ", j = " + j);
+            if( EndPointsX[j].isMAX() ){
+              if( keyX.isMIN() ){
+                //console.log("no coll");
+                let i0 =  EndPointsX[j].index;
+                let i1 =  keyX.index;
+
+              //console.log("i0 = " + i0 + " i1 = " + i1);
+                if( i0!=i1 && bbs[i1].collide(bbs[i0]) ){
+                  //console.log("i0 = " + i0 + " i1 = " + i1 + " " + j);
+                  events.push(new Event(i0, i1, 1));///1 for insert
+                }
+              }
+            }
+            else if( EndPointsX[j].isMIN() ){
+              if( keyX.isMAX() ){
+                //  console.log(bbs[keyX.index].collide(bbs[EndPointsX[j].index]));
+                  let i0 =  EndPointsX[j].index;
+                  let i1 =  keyX.index;
+                  console.log("i0 = " + i0 + " i1 = " + i1);
+                  if(i0!=i1 ){
+                    //console.log("b");
+                    events.push(new Event(i0, i1, 0));///0 for remove
+                  }
+              }
+            }
+            /*let temp = EndPointsX[j];
+            EndPointsX[j] = EndPointsX[j+1];
+            EndPointsX[j+1] = temp;*/
+            EndPointsX[j+1] = EndPointsX[j];
+        }
+        EndPointsX[j+1] = keyX;
+
+        /*let keyY = EndPointsY[i];
+        for(j=i-1;j>=0 && keyY.val < EndPointsY[j].val;j--){
+
+            if( EndPointsY[j].isBeginning() ){
+              if( EndPointsY[j+1].isEnding() ){
+                  events.push(new Event(EndPointsY[j].index, EndPointsY[j+1].index, 0));///0 for remove
+              }
+            }
+            else {
+              if( EndPointsY[j+1].isBeginning() ){
+                  events.push(new Event(EndPointsY[j].index, EndPointsY[j+1].index, 1));///1 for insert
+              }
+            }
+            let temp = EndPointsY[j];
+            EndPointsY[j] = EndPointsY[j+1];
+            EndPointsY[j+1] = temp;
+        }
+        EndPointsY[j+1] = keyY;*/
+      }
+
+    }
+    function sweep(){
+        for(let i=0;i<events.length;i++){
+          let ovelap = {X:events[i].index0, Y:events[i].index1};
+          let isFind = false, j;
+          for(j=0;j<ovelapsSet.length;j++){
+
+            if(ovelapsSet[j].X == ovelap.X && ovelapsSet[j].Y == ovelap.Y){
+              isFind = true;
+              break;
+            }
+          }
+          if(isFind && events[i].type == 0){
+              ovelapsSet.splice(j, 1);
+          }
+          else if(!isFind && events[i].type == 1){
+            ovelapsSet.push(ovelap);
+          }
+          //console.log(ovelapsSet.length);
+          /*if(events[i].type == 0){
+
+            for(let j=0;j<ovelapsSet.length;j++){
+
+              if(ovelapsSet[j].X == ovelap.X && ovelapsSet[j].Y == ovelap.Y){
+                ovelapsSet.splice(j, 1);
+                break;
+              }
+            }
+
+          }
+          else{
+            ovelapsSet.push(ovelap);
+          }*/
+        }
+        events = [];
+    }
+  </script>
+</body>
+</html>

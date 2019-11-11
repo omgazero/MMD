@@ -198,8 +198,9 @@
             scene.add(physicsHelper);
 
 
-            console.log(player.character);
+
             world = helper.objects.get(player.character).physics.world;
+            console.log(helper.objects.get(player.character).physics);
             createGround();
             createBoxes();
             setTimeout(animate, 1000);

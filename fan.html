@@ -82,7 +82,7 @@ body {
     bufferScene = new THREE.Scene();
     bufferScene.background = new THREE.Color(0x888888);
     //bufferCamera= new THREE.PerspectiveCamera(60, 1, 0.1, 500);
-    bufferCamera = new THREE.PerspectiveCamera( 60, 1/ 5, 0.1, 1000 );
+    bufferCamera = new THREE.PerspectiveCamera( 60, 1/ 25, 0.1, 1000 );
     bufferCamera.position.z = 35;
     bufferScene.add(bufferCamera);
 
@@ -103,7 +103,7 @@ body {
     bufferTexture.scissor = new THREE.Vector4(0, 0, 720, 720);
     console.log(bufferTexture.scissor);*/
     ///////////////////
-    plan = new THREE.Mesh (new THREE.PlaneGeometry (5, 25),
+    plan = new THREE.Mesh (new THREE.PlaneGeometry (1, 25),
         new THREE.MeshBasicMaterial({map: bufferTexture.texture}));
     plan.position.y = 10;
     scene.add(plan);
